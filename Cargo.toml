@@ -13,9 +13,9 @@ license = "MIT OR Apache-2.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 # Web framework
-actix-web = "0.1"
-tower = "0.4"
-tower-http = { version = "0.5", features = ["trace", "cors"] }
+actix-web = "4.13.0"
+tower = "0.5"
+tower-http = { version = "0.6.8", features = ["trace", "cors"] }
 
 # Database
 sqlx = { version = "0.8", features = [
@@ -32,7 +32,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 # Kafka
-rdkafka = { version = "0.36", features = ["tokio"] }
+rdkafka = { version = "0.39.0", features = ["tokio", "cmake-build"] }
 
 # Types
 uuid = { version = "1", features = ["v4", "serde"] }
@@ -41,15 +41,15 @@ rust_decimal = { version = "1", features = ["serde-with-str"] }
 
 # Error handling
 anyhow = "1"
-thiserror = "1"
+thiserror = "2.0.18"
 
 # Observability
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Configuration
-config = "0.14"
+config = "0.15.22"
 
 # Testing
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.13.2", features = ["json"] }
 once_cell = "1"

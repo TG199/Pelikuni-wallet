@@ -16,10 +16,10 @@
   fi
 
   DB_USER="${POSTGRES_USER:=postgres}"
-  DB_PASSWORD="${POSTGRES_PASSWORD}"
-  DB_NAME="${POSTGRES_DB}"
-  DB_PORT="${POSTGRES_PORT}"
-  DB_HOST="${POSTGRES_HOST}"
+  DB_PASSWORD="${POSTGRES_PASSWORD:={specify-your-password}}"
+  DB_NAME="${POSTGRES_DB:=pelukini-wallet-db}"
+  DB_PORT="${POSTGRES_PORT:=5432}"
+  DB_HOST="${POSTGRES_HOST:=localhost}"
 
   if [[ -z "${SKIP_DOCKER}" ]]
   then

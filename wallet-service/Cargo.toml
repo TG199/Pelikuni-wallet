@@ -47,6 +47,13 @@ tracing-subscriber.workspace = true
 
 # Configuration
 config.workspace = true
+secrecy.workspace = true
+reqwest.workspace = true
+serde-aux.workspace = true
+actix-web-flash-messages.workspace = true
+tracing-actix-web.workspace = true
+tracing-bunyan-formatter = "0.3.10"
+tracing-log = "0.2.0"
 
 [dev-dependencies]
 reqwest.workspace = true

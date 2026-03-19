@@ -1,5 +1,5 @@
-use actix_web::HttpResponse;
+mod health_check;
+mod home;
 
-pub async fn health_check() -> HttpResponse {
-    HttpResponse::Ok().finish()
-}
+pub use health_check::*;
+pub use home::*;

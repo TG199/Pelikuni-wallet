@@ -1,10 +1,10 @@
-use actix_web::cookie::Key;
+// use actix_web::cookie::Key;
 use actix_web::dev::Server;
 use actix_web::{web, App, HttpServer};
-use actix_web_flash_messages::storage::CookieMessageStore;
-use actix_web_flash_messages::FlashMessagesFramework;
+// use actix_web_flash_messages::storage::CookieMessageStore;
+// use actix_web_flash_messages::FlashMessagesFramework;
 use reqwest::Url;
-use secrecy::ExposeSecret;
+// use secrecy::ExposeSecret;
 use secrecy::SecretString;
 use serde::Deserialize;
 use sqlx::postgres::PgPoolOptions;
@@ -14,7 +14,7 @@ use tracing_actix_web::TracingLogger;
 
 use crate::configuration::DatabaseSettings;
 use crate::configuration::Settings;
-
+use crate::routes::{health_check, home};
 
 pub struct Application {
     port: u16,
@@ -29,7 +29,7 @@ impl Application {
             configuration.application.host, configuration.application.port
         );
 
-        let listener = TcpListener::bind(address);
+        let listener = TcpListener::bind(address)?;
 
         let port = listener.local_addr().unwrap().port();
 
@@ -40,7 +40,7 @@ impl Application {
             configuration.application.hmac_secret,
         )
         .await?;
-        Ok(Self {port, server})
+        Ok(Self { port, server })
     }
 
     pub fn port(&self) -> u16 {
@@ -69,16 +69,14 @@ async fn run(
     let db_pool = web::Data::new(db_pool);
     let base_url = web::Data::new(ApplicationBaseUrl(base_url));
 
-
     let server = HttpServer::new(move || {
         App::new()
-            .wrap(RequestId)
+            // .wrap(RequestId)
             .wrap(TracingLogger::default())
             .app_data(web::JsonConfig::default().limit(262_144))
             .app_data(web::PayloadConfig::default().limit(10_485_760))
             .route("/", web::get().to(home))
             .route("/health", web::get().to(health_check))
-            .
             .app_data(db_pool.clone())
             .app_data(base_url.clone())
             .app_data(web::Data::new(HmacSecret(hmac_secret.clone())))

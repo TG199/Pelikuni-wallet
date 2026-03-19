@@ -1,12 +1,10 @@
-use config::{Config, ConfigError, Environment, File};
+use config::ConfigError;
+use reqwest::Url;
 use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
-use reqwest::Url;
+use serde_aux::field_attributes::deserialize_number_from_string;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use sqlx::ConnectOptions;
-
-
-
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
@@ -37,6 +35,7 @@ pub struct DatabaseSettings {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub database_name: String,
+    pub require_ssl: bool,
 }
 
 impl DatabaseSettings {
@@ -45,10 +44,10 @@ impl DatabaseSettings {
         options
             .clone()
             .log_statements(tracing::log::LevelFilter::Trace);
-        options       
+        options
     }
 
-    pub fn without_db(&self) -> String {
+    pub fn without_db(&self) -> PgConnectOptions {
         let ssl_mode = if self.require_ssl {
             PgSslMode::Require
         } else {
@@ -75,18 +74,17 @@ pub fn get_configuration() -> Result<Settings, ConfigError> {
     let configuration_directory = base_path.join("configuration");
 
     let environment: Environment = std::env::var("APP_ENVIRONMENT")
-        .unwrap()_or_else(|_| "local".into())
+        .unwrap_or_else(|_| "local".into())
         .try_into()
         .expect("Failed to parse APP_ENVIRONMENT");
 
-
     let settings = config::Config::builder()
-        .add_source(config::File::from(configuration_directory.join("base"))).required(true)
-        .add_source(config::File::from(configuration_directory.join(environment.as_str()))).required(true),
-        .add_source(
-            config::Environment::with_prefix("APP")
-                .separator("__")
-        ).build()?;
+        .add_source(config::File::from(configuration_directory.join("base")))
+        .add_source(config::File::from(
+            configuration_directory.join(environment.as_str()),
+        ))
+        .add_source(config::Environment::with_prefix("APP").separator("__"))
+        .build()?;
 
     settings.try_deserialize()
 }
@@ -95,7 +93,7 @@ pub enum Environment {
     Local,
     Production,
 }
- 
+
 impl Environment {
     pub fn as_str(&self) -> &'static str {
         match self {

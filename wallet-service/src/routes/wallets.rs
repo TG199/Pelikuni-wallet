@@ -1,46 +1,49 @@
-use actix_web::http::StatusCode;
-use actix_web::web;
-use actix_web::{App, Json, Path};
+use actix_web::{
+    web::{Data, Json, Path},
+    HttpResponse, Result,
+};
 use uuid::Uuid;
 
 use crate::domain::{CreateWalletRequest, Wallet, WalletRepository, WalletResponse};
 
 pub async fn create_wallet(
-    repo: web::Data<WalletRepository>,
+    repo: Data<WalletRepository>,
     payload: Json<CreateWalletRequest>,
-) -> Result<(StatusCode, Json<WalletResponse>), (StatusCode, String)> {
+) -> Result<HttpResponse> {
+    let payload = payload.into_inner(); // ✅ extract
     let wallet = Wallet::new(payload.user_id);
 
     let created_wallet = repo
         .create(&wallet)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(actix_web::error::ErrorInternalServerError)?;
 
-    Ok((StatusCode::CREATED, Json(created_wallet.into())))
+    Ok(HttpResponse::Created().json(WalletResponse::from(created_wallet)))
 }
 
-pub async fn get_wallet(
-    repo: web::Data<WalletRepository>,
-    id: Path<Uuid>,
-) -> Result<Json<WalletResponse>, (StatusCode, String)> {
+pub async fn get_wallet(repo: Data<WalletRepository>, id: Path<Uuid>) -> Result<HttpResponse> {
+    let id = id.into_inner(); // ✅ extract
+
     let wallet = repo.find_by_id(id).await.map_err(|e| match e {
-        sqlx::Error::RowNotFound => (StatusCode::NOT_FOUND, "Wallet not found".to_string()),
-        _ => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+        sqlx::Error::RowNotFound => actix_web::error::ErrorNotFound("Wallet not found"),
+        _ => actix_web::error::ErrorInternalServerError(e),
     })?;
 
-    Ok(Json(wallet.into()))
+    Ok(HttpResponse::Ok().json(WalletResponse::from(wallet)))
 }
 
 pub async fn list_user_wallets(
-    repo: web::Data<WalletRepository>,
+    repo: Data<WalletRepository>,
     user_id: Path<String>,
-) -> Result<Json<Vec<WalletResponse>>, (StatusCode, String)> {
+) -> Result<HttpResponse> {
+    let user_id = user_id.into_inner(); // ✅ extract
+
     let wallets = repo
         .find_by_user(&user_id)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(actix_web::error::ErrorInternalServerError)?;
 
     let responses: Vec<WalletResponse> = wallets.into_iter().map(Into::into).collect();
 
-    Ok(Json(responses))
+    Ok(HttpResponse::Ok().json(responses))
 }

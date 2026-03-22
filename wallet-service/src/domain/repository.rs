@@ -1,6 +1,6 @@
+use crate::domain::Wallet;
 use sqlx::PgPool;
 use uuid::Uuid;
-
 pub struct WalletRepository {
     pool: PgPool,
 }

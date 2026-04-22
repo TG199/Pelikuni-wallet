@@ -14,7 +14,10 @@ use tracing_actix_web::TracingLogger;
 
 use crate::configuration::DatabaseSettings;
 use crate::configuration::Settings;
-use crate::routes::{health_check, home};
+use crate::routes::{
+    health_check, home,
+    wallets::{create_wallet, get_wallet, list_user_wallets},
+};
 
 pub struct Application {
     port: u16,
@@ -77,6 +80,12 @@ async fn run(
             .app_data(web::PayloadConfig::default().limit(10_485_760))
             .route("/", web::get().to(home))
             .route("/health", web::get().to(health_check))
+            .route("/wallets", web::post().to(create_wallet(repo, payload)))
+            .route("/wallets/:id", web::get().to(get_wallet(repo, id)))
+            .route(
+                "/users/:user_id/wallets",
+                web::get().to(list_user_wallets(repo, id)),
+            )
             .app_data(db_pool.clone())
             .app_data(base_url.clone())
             .app_data(web::Data::new(HmacSecret(hmac_secret.clone())))

@@ -1,6 +1,8 @@
-use crate::domain::Wallet;
 use sqlx::PgPool;
 use uuid::Uuid;
+
+use crate::domain::wallet::Wallet;
+
 pub struct WalletRepository {
     pool: PgPool,
 }
@@ -55,6 +57,28 @@ impl WalletRepository {
             user_id
         )
         .fetch_all(&self.pool)
+        .await
+    }
+
+    pub async fn update_balance(
+        &self,
+        id: Uuid,
+        new_balance: rust_decimal::Decimal,
+        expected_version: i64,
+    ) -> Result<Wallet, sqlx::Error> {
+        sqlx::query_as!(
+            Wallet,
+            r#"
+            UPDATE wallets
+            SET balance = $1, version = version + 1, updated_at = NOW()
+            WHERE id = $2 AND version = $3
+            RETURNING id, user_id, balance, version, created_at, updated_at
+            "#,
+            new_balance,
+            id,
+            expected_version
+        )
+        .fetch_one(&self.pool)
         .await
     }
 }

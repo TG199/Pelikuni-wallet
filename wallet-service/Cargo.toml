@@ -54,6 +54,7 @@ actix-web-flash-messages.workspace = true
 tracing-actix-web.workspace = true
 tracing-bunyan-formatter = "0.3.10"
 tracing-log = "0.2.0"
+kafka = "0.10.0"
 
 [dev-dependencies]
 reqwest.workspace = true

@@ -10,7 +10,7 @@ use sqlx::ConnectOptions;
 pub struct Settings {
     pub application: ApplicationSettings,
     pub database: DatabaseSettings,
-    // pub kafka: KafkaSettings,
+    pub kafka: KafkaSettings,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -77,6 +77,7 @@ pub fn get_configuration() -> Result<Settings, ConfigError> {
         .unwrap_or_else(|_| "local".into())
         .try_into()
         .expect("Failed to parse APP_ENVIRONMENT");
+
     let settings = config::Config::builder()
         .add_source(config::File::from(configuration_directory.join("base")))
         .add_source(config::File::from(

@@ -22,7 +22,7 @@ pub enum WalletEvent {
     WalletCreated {
         wallet_id: Uuid,
         user_id: String,
-        transanction_id: Uuid,
+        transaction_id: Uuid, // fixed: was transanction_id
         initial_balance: Decimal,
         timestamp: DateTime<Utc>,
     },
@@ -34,7 +34,6 @@ pub enum WalletEvent {
         new_balance: Decimal,
         timestamp: DateTime<Utc>,
     },
-
     TransferCompleted {
         from_wallet_id: Uuid,
         to_wallet_id: Uuid,
@@ -71,6 +70,18 @@ impl WalletEvent {
             | Self::WalletFunded { timestamp, .. }
             | Self::TransferCompleted { timestamp, .. }
             | Self::TransferFailed { timestamp, .. } => *timestamp,
+        }
+    }
+
+    /// Returns the primary wallet ID as the Kafka partition key.
+    /// Ensures all events for a wallet land on the same partition,
+    /// preserving per-wallet ordering.
+    pub fn wallet_key(&self) -> String {
+        match self {
+            Self::WalletCreated { wallet_id, .. } => wallet_id.to_string(),
+            Self::WalletFunded { wallet_id, .. } => wallet_id.to_string(),
+            Self::TransferCompleted { from_wallet_id, .. } => from_wallet_id.to_string(),
+            Self::TransferFailed { from_wallet_id, .. } => from_wallet_id.to_string(),
         }
     }
 }

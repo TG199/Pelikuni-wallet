@@ -8,11 +8,11 @@ CREATE TABLE wallets (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- index for user lookups
+-- Index for user lookups
 CREATE INDEX idx_wallets_user_id ON wallets(user_id);
 
 -- Trigger to update updated_at
-CREATE OR REPLACE FUNCTION trigger_set_timestamps()
+CREATE OR REPLACE FUNCTION trigger_set_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = NOW();
@@ -23,4 +23,4 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER set_timestamp
 BEFORE UPDATE ON wallets
 FOR EACH ROW
-EXECUTE FUNCTION trigger_set_timestamps();
+EXECUTE FUNCTION trigger_set_timestamp();

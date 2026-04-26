@@ -1,5 +1,5 @@
 use actix_web::dev::Server;
-use actix_web::{web, App, HttpResponse, HttpServer};
+use actix_web::{web, App, HttpServer};
 use reqwest::Url;
 use secrecy::SecretString;
 use serde::Deserialize;
@@ -8,7 +8,7 @@ use sqlx::PgPool;
 use std::net::TcpListener;
 use tracing_actix_web::TracingLogger;
 
-use crate::configuration::{DatabaseSettings, KafkaSettings, Settings};
+use crate::configuration::{DatabaseSettings, Settings};
 use crate::domain::WalletRepository;
 use crate::kafka::KafkaProducer;
 use crate::routes::{
@@ -63,11 +63,11 @@ pub fn get_connection_pool(configuration: &DatabaseSettings) -> PgPool {
 
 pub struct ApplicationBaseUrl(pub Url);
 
-async fn dashboard() -> HttpResponse {
-    HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(include_str!("ui/dashboard.html"))
-}
+// async fn dashboard() -> HttpResponse {
+//     HttpResponse::Ok()
+//         .content_type("text/html; charset=utf-8")
+//         // .body(include_str!("ui/dashboard.html"))
+// }
 
 async fn run(
     listener: TcpListener,
@@ -87,7 +87,7 @@ async fn run(
             .app_data(web::JsonConfig::default().limit(262_144))
             .app_data(web::PayloadConfig::default().limit(10_485_760))
             // UI
-            .route("/ui", web::get().to(dashboard))
+            // .route("/ui", web::get().to(dashboard))
             // Core
             .route("/", web::get().to(home))
             .route("/health", web::get().to(health_check))

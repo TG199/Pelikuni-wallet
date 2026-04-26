@@ -1,4 +1,9 @@
+use actix_web::error::{
+    ErrorBadRequest, ErrorConflict, ErrorInternalServerError, ErrorNotFound,
+    ErrorUnprocessableEntity,
+};
 use actix_web::web;
+use actix_web::Error;
 use actix_web::HttpResponse;
 use chrono::Utc;
 use rust_decimal::Decimal;
@@ -13,12 +18,13 @@ pub async fn create_wallet(
     repo: web::Data<WalletRepository>,
     producer: web::Data<KafkaProducer>,
     payload: web::Json<CreateWalletRequest>,
-) -> Result<HttpResponse, HttpResponse> {
+) -> Result<HttpResponse, Error> {
     let wallet = Wallet::new(payload.user_id.clone());
 
-    let created = repo.create(&wallet).await.map_err(|e| {
-        HttpResponse::InternalServerError().json(serde_json::json!({ "error": e.to_string() }))
-    })?;
+    let created = repo
+        .create(&wallet)
+        .await
+        .map_err(|e| ErrorInternalServerError(e.to_string()))?;
 
     // Publish event — fire and forget, don't fail the request if Kafka is down
     let event = WalletEvent::WalletCreated {
@@ -39,15 +45,13 @@ pub async fn create_wallet(
 pub async fn get_wallet(
     repo: web::Data<WalletRepository>,
     id: web::Path<Uuid>,
-) -> Result<HttpResponse, HttpResponse> {
+) -> Result<HttpResponse, Error> {
     let wallet =
         repo.find_by_id(id.into_inner())
             .await
             .map_err(|e| match e {
-                sqlx::Error::RowNotFound => HttpResponse::NotFound()
-                    .json(serde_json::json!({ "error": "Wallet not found" })),
-                _ => HttpResponse::InternalServerError()
-                    .json(serde_json::json!({ "error": e.to_string() })),
+                sqlx::Error::RowNotFound => ErrorNotFound("Wallet not found"),
+                _ => ErrorInternalServerError(e.to_string()),
             })?;
 
     Ok(HttpResponse::Ok().json(WalletResponse::from(wallet)))
@@ -56,13 +60,11 @@ pub async fn get_wallet(
 pub async fn list_user_wallets(
     repo: web::Data<WalletRepository>,
     user_id: web::Path<String>,
-) -> Result<HttpResponse, HttpResponse> {
+) -> Result<HttpResponse, Error> {
     let wallets = repo
         .find_by_user(&user_id.into_inner())
         .await
-        .map_err(|e| {
-            HttpResponse::InternalServerError().json(serde_json::json!({ "error": e.to_string() }))
-        })?;
+        .map_err(|e| ErrorInternalServerError(e.to_string()))?;
 
     let responses: Vec<WalletResponse> = wallets.into_iter().map(Into::into).collect();
     Ok(HttpResponse::Ok().json(responses))
@@ -78,21 +80,16 @@ pub async fn fund_wallet(
     producer: web::Data<KafkaProducer>,
     id: web::Path<Uuid>,
     payload: web::Json<FundWalletRequest>,
-) -> Result<HttpResponse, HttpResponse> {
+) -> Result<HttpResponse, Error> {
     if payload.amount <= Decimal::ZERO {
-        return Err(HttpResponse::BadRequest()
-            .json(serde_json::json!({ "error": "Amount must be greater than zero" })));
+        return Err(ErrorBadRequest("Amount must be greater than zero"));
     }
 
     let wallet_id = id.into_inner();
 
     let wallet = repo.find_by_id(wallet_id).await.map_err(|e| match e {
-        sqlx::Error::RowNotFound => {
-            HttpResponse::NotFound().json(serde_json::json!({ "error": "Wallet not found" }))
-        }
-        _ => {
-            HttpResponse::InternalServerError().json(serde_json::json!({ "error": e.to_string() }))
-        }
+        sqlx::Error::RowNotFound => ErrorNotFound("Wallet not found"),
+        _ => ErrorInternalServerError(e.to_string()),
     })?;
 
     let new_balance = wallet.balance + payload.amount;
@@ -101,11 +98,10 @@ pub async fn fund_wallet(
         .update_balance(wallet.id, new_balance, wallet.version)
         .await
         .map_err(|e| match e {
-            sqlx::Error::RowNotFound => HttpResponse::Conflict().json(serde_json::json!({
-                "error": "Concurrent modification detected, please retry"
-            })),
-            _ => HttpResponse::InternalServerError()
-                .json(serde_json::json!({ "error": e.to_string() })),
+            sqlx::Error::RowNotFound => {
+                ErrorConflict("Concurrent modification detected, please retry")
+            }
+            _ => ErrorInternalServerError(e.to_string()),
         })?;
 
     let transaction_id = Uuid::new_v4();
@@ -136,35 +132,29 @@ pub async fn transfer(
     producer: web::Data<KafkaProducer>,
     from_id: web::Path<Uuid>,
     payload: web::Json<TransferRequest>,
-) -> Result<HttpResponse, HttpResponse> {
+) -> Result<HttpResponse, Error> {
     if payload.amount <= Decimal::ZERO {
-        return Err(HttpResponse::BadRequest()
-            .json(serde_json::json!({ "error": "Amount must be greater than zero" })));
+        return Err(ErrorBadRequest("Amount must be greater than zero"));
     }
 
     let from_wallet = repo
         .find_by_id(from_id.into_inner())
         .await
         .map_err(|e| match e {
-            sqlx::Error::RowNotFound => HttpResponse::NotFound()
-                .json(serde_json::json!({ "error": "Source wallet not found" })),
-            _ => HttpResponse::InternalServerError()
-                .json(serde_json::json!({ "error": e.to_string() })),
+            sqlx::Error::RowNotFound => ErrorNotFound("Source wallet not found"),
+            _ => ErrorInternalServerError(e.to_string()),
         })?;
 
     if from_wallet.balance < payload.amount {
-        return Err(HttpResponse::UnprocessableEntity()
-            .json(serde_json::json!({ "error": "Insufficient balance" })));
+        return Err(ErrorUnprocessableEntity("Insufficient balance"));
     }
 
     let to_wallet = repo
         .find_by_id(payload.to_wallet_id)
         .await
         .map_err(|e| match e {
-            sqlx::Error::RowNotFound => HttpResponse::NotFound()
-                .json(serde_json::json!({ "error": "Destination wallet not found" })),
-            _ => HttpResponse::InternalServerError()
-                .json(serde_json::json!({ "error": e.to_string() })),
+            sqlx::Error::RowNotFound => ErrorNotFound("Destination wallet not found"),
+            _ => ErrorInternalServerError(e.to_string()),
         })?;
 
     // Debit source
@@ -172,11 +162,10 @@ pub async fn transfer(
     repo.update_balance(from_wallet.id, new_from_balance, from_wallet.version)
         .await
         .map_err(|e| match e {
-            sqlx::Error::RowNotFound => HttpResponse::Conflict().json(serde_json::json!({
-                "error": "Concurrent modification on source wallet, please retry"
-            })),
-            _ => HttpResponse::InternalServerError()
-                .json(serde_json::json!({ "error": e.to_string() })),
+            sqlx::Error::RowNotFound => {
+                ErrorConflict("Concurrent modification on source wallet, please retry")
+            }
+            _ => ErrorInternalServerError(e.to_string()),
         })?;
 
     // Credit destination
@@ -185,11 +174,10 @@ pub async fn transfer(
         .update_balance(to_wallet.id, new_to_balance, to_wallet.version)
         .await
         .map_err(|e| match e {
-            sqlx::Error::RowNotFound => HttpResponse::Conflict().json(serde_json::json!({
-                "error": "Concurrent modification on destination wallet, please retry"
-            })),
-            _ => HttpResponse::InternalServerError()
-                .json(serde_json::json!({ "error": e.to_string() })),
+            sqlx::Error::RowNotFound => {
+                ErrorConflict("Concurrent modification on destination wallet, please retry")
+            }
+            _ => ErrorInternalServerError(e.to_string()),
         })?;
 
     let from_transaction_id = Uuid::new_v4();

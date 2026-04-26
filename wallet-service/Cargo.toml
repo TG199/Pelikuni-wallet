@@ -48,14 +48,16 @@ tracing-subscriber.workspace = true
 # Configuration
 config.workspace = true
 secrecy.workspace = true
-reqwest.workspace = true
+# reqwest.workspace = true
 serde-aux.workspace = true
 actix-web-flash-messages.workspace = true
 tracing-actix-web.workspace = true
 tracing-bunyan-formatter = "0.3.10"
 tracing-log = "0.2.0"
-kafka = "0.10.0"
+reqwest = { version = "0.13.2", default-features = false, features = [
+    "json",
+    "rustls",
+] }
 
 [dev-dependencies]
-reqwest.workspace = true
 once_cell.workspace = true

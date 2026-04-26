@@ -40,7 +40,6 @@ chrono = { version = "0.4", features = ["serde"] }
 rust_decimal = { version = "1", features = ["serde-with-str"] }
 secrecy = { version = "0.10.3", features = ["serde"] }
 actix-web-flash-messages = { version = "0.5.0", features = ["cookies"] }
-reqwest = { version = "0.13.2", default-features = false, features = ["json"] }
 tracing-actix-web = "0.7.21"
 serde-aux = "4.7.0"
 

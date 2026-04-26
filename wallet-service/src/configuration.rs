@@ -71,7 +71,7 @@ pub struct KafkaSettings {
 
 pub fn get_configuration() -> Result<Settings, ConfigError> {
     let base_path = std::env::current_dir().expect("Failed to determine current directory");
-    let configuration_directory = base_path.join("configuration");
+    let configuration_directory = base_path.join("wallet-service/configuration");
 
     let environment: Environment = std::env::var("APP_ENVIRONMENT")
         .unwrap_or_else(|_| "local".into())

@@ -1,7 +1,4 @@
-use actix_web::error::{
-    ErrorBadRequest, ErrorConflict, ErrorInternalServerError, ErrorNotFound,
-    ErrorUnprocessableEntity,
-};
+use actix_web::error::{ErrorBadRequest, ErrorConflict, ErrorInternalServerError, ErrorNotFound};
 use actix_web::web;
 use actix_web::Error;
 use actix_web::HttpResponse;
@@ -26,7 +23,6 @@ pub async fn create_wallet(
         .await
         .map_err(|e| ErrorInternalServerError(e.to_string()))?;
 
-    // Publish event — fire and forget, don't fail the request if Kafka is down
     let event = WalletEvent::WalletCreated {
         wallet_id: created.id,
         user_id: created.user_id.clone(),
@@ -55,6 +51,16 @@ pub async fn get_wallet(
         })?;
 
     Ok(HttpResponse::Ok().json(WalletResponse::from(wallet)))
+}
+
+pub async fn list_wallets(repo: web::Data<WalletRepository>) -> Result<HttpResponse, Error> {
+    let wallets = repo
+        .find_all()
+        .await
+        .map_err(|e| ErrorInternalServerError(e.to_string()))?;
+
+    let responses: Vec<WalletResponse> = wallets.into_iter().map(Into::into).collect();
+    Ok(HttpResponse::Ok().json(responses))
 }
 
 pub async fn list_user_wallets(
@@ -104,11 +110,10 @@ pub async fn fund_wallet(
             _ => ErrorInternalServerError(e.to_string()),
         })?;
 
-    let transaction_id = Uuid::new_v4();
     let event = WalletEvent::WalletFunded {
         wallet_id: updated.id,
         user_id: updated.user_id.clone(),
-        transaction_id,
+        transaction_id: Uuid::new_v4(),
         amount: payload.amount,
         new_balance: updated.balance,
         timestamp: Utc::now(),
@@ -137,60 +142,31 @@ pub async fn transfer(
         return Err(ErrorBadRequest("Amount must be greater than zero"));
     }
 
-    let from_wallet = repo
-        .find_by_id(from_id.into_inner())
-        .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => ErrorNotFound("Source wallet not found"),
-            _ => ErrorInternalServerError(e.to_string()),
-        })?;
+    let from_uuid = from_id.into_inner();
 
-    if from_wallet.balance < payload.amount {
-        return Err(ErrorUnprocessableEntity("Insufficient balance"));
+    if from_uuid == payload.to_wallet_id {
+        return Err(ErrorBadRequest("Cannot transfer to the same wallet"));
     }
 
-    let to_wallet = repo
-        .find_by_id(payload.to_wallet_id)
+    let (updated_from, updated_to) = repo
+        .transfer(from_uuid, payload.to_wallet_id, payload.amount)
         .await
         .map_err(|e| match e {
-            sqlx::Error::RowNotFound => ErrorNotFound("Destination wallet not found"),
-            _ => ErrorInternalServerError(e.to_string()),
-        })?;
-
-    // Debit source
-    let new_from_balance = from_wallet.balance - payload.amount;
-    repo.update_balance(from_wallet.id, new_from_balance, from_wallet.version)
-        .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => {
-                ErrorConflict("Concurrent modification on source wallet, please retry")
+            sqlx::Error::RowNotFound => ErrorNotFound("Wallet not found"),
+            sqlx::Error::Protocol(msg) if msg.contains("Insufficient balance") => {
+                ErrorBadRequest("Insufficient balance")
             }
             _ => ErrorInternalServerError(e.to_string()),
         })?;
-
-    // Credit destination
-    let new_to_balance = to_wallet.balance + payload.amount;
-    let updated_to = repo
-        .update_balance(to_wallet.id, new_to_balance, to_wallet.version)
-        .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => {
-                ErrorConflict("Concurrent modification on destination wallet, please retry")
-            }
-            _ => ErrorInternalServerError(e.to_string()),
-        })?;
-
-    let from_transaction_id = Uuid::new_v4();
-    let to_transaction_id = Uuid::new_v4();
 
     let event = WalletEvent::TransferCompleted {
-        from_wallet_id: from_wallet.id,
-        to_wallet_id: to_wallet.id,
-        from_user_id: from_wallet.user_id.clone(),
-        to_user_id: to_wallet.user_id.clone(),
+        from_wallet_id: updated_from.id,
+        to_wallet_id: updated_to.id,
+        from_user_id: updated_from.user_id.clone(),
+        to_user_id: updated_to.user_id.clone(),
         amount: payload.amount,
-        from_transaction_id,
-        to_transaction_id,
+        from_transaction_id: Uuid::new_v4(),
+        to_transaction_id: Uuid::new_v4(),
         timestamp: Utc::now(),
     };
 

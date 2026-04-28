@@ -46,13 +46,13 @@ pub async fn get_wallet(
     repo: web::Data<WalletRepository>,
     id: web::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
-    let wallet =
-        repo.find_by_id(id.into_inner())
-            .await
-            .map_err(|e| match e {
-                sqlx::Error::RowNotFound => ErrorNotFound("Wallet not found"),
-                _ => ErrorInternalServerError(e.to_string()),
-            })?;
+    let wallet = repo
+        .find_by_id(id.into_inner())
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => ErrorNotFound("Wallet not found"),
+            _ => ErrorInternalServerError(e.to_string()),
+        })?;
 
     Ok(HttpResponse::Ok().json(WalletResponse::from(wallet)))
 }

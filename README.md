@@ -71,7 +71,7 @@ curl -X POST http://localhost:8000/wallets/{from_id}/transfer \
 ## Roadmap
 
 - [x] Kafka event publishing on fund and transfer
-- [ ] `history-service` consumer implementation
+- [ ] `history-service` Kafka consumer storing immutable transaction log (planned Q3 2026)
 - [ ] Integration test suite
 - [ ] Open Payments integration via [signet-http](https://github.com/TG199/signet-http)
 - [ ] Authentication middleware

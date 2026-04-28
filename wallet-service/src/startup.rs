@@ -12,7 +12,8 @@ use crate::configuration::{DatabaseSettings, Settings};
 use crate::domain::WalletRepository;
 use crate::kafka::KafkaProducer;
 use crate::routes::{
-    create_wallet, fund_wallet, get_wallet, health_check, home, list_user_wallets, transfer,
+    create_wallet, fund_wallet, get_wallet, health_check, home, list_user_wallets, list_wallets,
+    transfer,
 };
 
 pub struct Application {
@@ -66,7 +67,7 @@ pub struct ApplicationBaseUrl(pub Url);
 // async fn dashboard() -> HttpResponse {
 //     HttpResponse::Ok()
 //         .content_type("text/html; charset=utf-8")
-//         // .body(include_str!("ui/dashboard.html"))
+//         .body(include_str!("ui/dashboard.html"))
 // }
 
 async fn run(
@@ -92,6 +93,7 @@ async fn run(
             .route("/", web::get().to(home))
             .route("/health", web::get().to(health_check))
             // Wallets
+            .route("/wallets", web::get().to(list_wallets))
             .route("/wallets", web::post().to(create_wallet))
             .route("/wallets/{id}", web::get().to(get_wallet))
             .route("/wallets/{id}/fund", web::post().to(fund_wallet))

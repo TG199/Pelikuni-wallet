@@ -70,7 +70,7 @@ curl -X POST http://localhost:8000/wallets/{from_id}/transfer \
 
 ## Roadmap
 
-- [ ] Kafka event publishing on fund and transfer
+- [x] Kafka event publishing on fund and transfer
 - [ ] `history-service` consumer implementation
 - [ ] Integration test suite
 - [ ] Open Payments integration via [signet-http](https://github.com/TG199/signet-http)

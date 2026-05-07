@@ -1,6 +1,6 @@
-# Pelikuni Wallet
+# Pelikuni
 
-A production-grade digital wallet system built in Rust, demonstrating microservices architecture, event-driven design, and payment domain modeling.
+A digital wallet system built in Rust, demonstrating microservices architecture, event-driven design, and payment domain modeling.
 
 ## Architecture
 
@@ -78,4 +78,4 @@ curl -X POST http://localhost:8000/wallets/{from_id}/transfer \
 
 ## License
 
-MIT OR Apache-2.0
+MIT
